@@ -1,66 +1,59 @@
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
-import { verifySessionToken } from '@/lib/auth';
-import { getUserMemories, getUserProfile } from '@/lib/store';
+'use client';
 
-export default async function DashboardPage() {
-  const token = cookies().get('ai_session')?.value;
-  const session = token ? verifySessionToken(token) : null;
+import { useRouter } from 'next/navigation';
+import { FormEvent, useState } from 'react';
 
-  if (!session) {
-    redirect('/login');
+export default function RegisterPage() {
+  const router = useRouter();
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setLoading(true);
+    setError('');
+
+    const formData = new FormData(event.currentTarget);
+    const res = await fetch('/api/auth/register', { method: 'POST', body: formData });
+    const data = await res.json();
+
+    if (!res.ok) {
+      setError(data.error || 'Unable to create account');
+      setLoading(false);
+      return;
+    }
+
+    router.push('/dashboard');
+    router.refresh();
   }
 
-  const user = await getUserProfile(session.userId);
-  const memories = await getUserMemories(session.userId);
-
   return (
-    <main className="page-shell">
-      <div className="dashboard-header card">
-        <div>
-          <p className="eyebrow">Dashboard</p>
-          <h1>Welcome, {user?.name ?? 'friend'}</h1>
-        </div>
-        <form action="/api/auth/logout" method="POST">
-          <button className="secondary-button" type="submit">Log out</button>
+    <main className="page-shell centered">
+      <div className="card auth-card">
+        <p className="eyebrow">Create account</p>
+        <h1>Register</h1>
+        <form onSubmit={handleSubmit} className="form-stack">
+          <label>
+            Full name
+            <input type="text" name="name" required placeholder="Jane Doe" />
+          </label>
+          <label>
+            Email
+            <input type="email" name="email" required placeholder="you@example.com" />
+          </label>
+          <label>
+            Password
+            <input type="password" name="password" required placeholder="Create a secure password" />
+          </label>
+          {error ? <p className="error-message">{error}</p> : null}
+          <button className="primary-button" type="submit" disabled={loading}>
+            {loading ? 'Creating account...' : 'Create account'}
+          </button>
         </form>
-      </div>
-
-      <div className="dashboard-grid">
-        <section className="card chat-panel">
-          <ChatForm />
-        </section>
-
-        <aside className="card memory-panel">
-          <h2>Saved memory</h2>
-          {memories.length === 0 ? (
-            <p className="empty-state">No saved memories yet.</p>
-          ) : (
-            <ul className="memory-list">
-              {memories.map((memory) => (
-                <li key={memory.id}>
-                  <strong>{memory.topic}</strong>
-                  <span>{memory.content}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </aside>
+        <p className="subtle-link">
+          Already have an account? <a href="/login">Sign in</a>
+        </p>
       </div>
     </main>
-  );
-}
-
-function ChatForm() {
-  return (
-    <div className="chat-form-wrapper">
-      <h2>Ask the AI</h2>
-      <form className="chat-form" action="/api/chat" method="POST">
-        <textarea name="question" rows={6} placeholder="Ask anything..." required />
-        <div className="button-row">
-          <button className="primary-button" type="submit">Ask AI</button>
-        </div>
-      </form>
-    </div>
   );
 }

@@ -35,8 +35,7 @@ async function ensureStore() {
 
 export async function readUsers(): Promise<UserRecord[]> {
   await ensureStore();
-  const raw = fs.readFileSync(USERS_FILE, 'utf-8');
-  return JSON.parse(raw || '[]');
+  return JSON.parse(fs.readFileSync(USERS_FILE, 'utf-8') || '[]');
 }
 
 export async function writeUsers(users: UserRecord[]) {
@@ -46,8 +45,7 @@ export async function writeUsers(users: UserRecord[]) {
 
 export async function readMemories(): Promise<MemoryRecord[]> {
   await ensureStore();
-  const raw = fs.readFileSync(MEMORY_FILE, 'utf-8');
-  return JSON.parse(raw || '[]');
+  return JSON.parse(fs.readFileSync(MEMORY_FILE, 'utf-8') || '[]');
 }
 
 export async function writeMemories(memories: MemoryRecord[]) {
@@ -59,6 +57,7 @@ export async function createUser(user: UserRecord) {
   const users = await readUsers();
   users.push(user);
   await writeUsers(users);
+  return user;
 }
 
 export async function getUserByEmail(email: string) {
@@ -71,21 +70,21 @@ export async function getUserProfile(userId: string) {
   return users.find((user) => user.id === userId) ?? null;
 }
 
-export async function getUserMemories(userId: string): Promise<MemoryRecord[]> {
-  const memories = await readMemories();
-  return memories.filter((memory) => memory.userId === userId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-}
-
 export async function saveUserMemory(userId: string, topic: string, content: string) {
   const memories = await readMemories();
   const newMemory: MemoryRecord = {
     id: crypto.randomUUID(),
     userId,
-    topic,
+    topic: topic || 'Saved fact',
     content,
     createdAt: new Date().toISOString(),
   };
   memories.unshift(newMemory);
   await writeMemories(memories);
   return newMemory;
+}
+
+export async function getUserMemories(userId: string): Promise<MemoryRecord[]> {
+  const memories = await readMemories();
+  return memories.filter((memory) => memory.userId === userId).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 }

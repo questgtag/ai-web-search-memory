@@ -1,4 +1,4 @@
-import jwt, { type JwtPayload } from 'jsonwebtoken';
+import jwt from 'jsonwebtoken';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
@@ -30,8 +30,12 @@ export function verifySessionToken(token: string): SessionUser | null {
   }
 }
 
+export function getSessionCookie() {
+  return cookies().get(SESSION_COOKIE_NAME)?.value ?? null;
+}
+
 export async function requireUser() {
-  const token = cookies().get(SESSION_COOKIE_NAME)?.value;
+  const token = getSessionCookie();
   if (!token) {
     redirect('/login');
   }

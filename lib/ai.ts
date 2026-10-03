@@ -1,5 +1,3 @@
-import OpenAI from 'openai';
-
 export type SearchResult = {
   title: string;
   url: string;
@@ -14,7 +12,7 @@ export async function fetchWebSearchResults(query: string): Promise<SearchResult
       {
         title: 'Search not configured',
         url: 'https://example.com',
-        content: 'TAVILY_API_KEY is missing. Add your API key to enable live web search.',
+        content: 'Add a TAVILY_API_KEY to enable real web search. This app is ready to use with a live search provider.',
       },
     ];
   }
@@ -34,27 +32,32 @@ export async function fetchWebSearchResults(query: string): Promise<SearchResult
   });
 
   if (!response.ok) {
-    throw new Error(`Web search failed: ${response.status}`);
+    throw new Error(`Web search failed with status ${response.status}`);
   }
 
-  const data = (await response.json()) as { results?: Array<{ title?: string; url?: string; content?: string; }> ; answer?: string };
+  const data = (await response.json()) as {
+    results?: Array<{ title?: string; url?: string; content?: string }>;
+    answer?: string;
+  };
 
   const results = (data.results ?? []).map((item) => ({
     title: item.title ?? 'Untitled result',
     url: item.url ?? 'https://example.com',
-    content: item.content ?? item.title ?? 'No summary available.',
+    content: item.content ?? 'No description available.',
   }));
 
-  if (results.length === 0 && typeof data.answer === 'string') {
-    return [{ title: 'Search result', url: 'https://example.com', content: data.answer }];
+  if (results.length === 0 && data.answer) {
+    return [{ title: 'Web answer', url: 'https://example.com', content: data.answer }];
   }
 
   return results;
 }
 
 export async function generateAnswer(question: string, memory: string[], searchResults: SearchResult[]) {
+  const apiKey = process.env.OPENAI_API_KEY;
+
   const prompt = `
-You are a helpful AI assistant. Answer the user's question using only the supplied evidence and personal memory when relevant.
+You are a helpful AI assistant.
 
 User question:
 ${question}
@@ -62,33 +65,31 @@ ${question}
 User memory:
 ${memory.length ? memory.map((item) => `- ${item}`).join('\n') : 'No saved memory for this user.'}
 
-Web search results:
-${searchResults.map((result, index) => `\n[${index + 1}] ${result.title}\nURL: ${result.url}\nSummary: ${result.content}`).join('\n')}
+Search results:
+${searchResults.map((r, i) => `\n[${i + 1}] ${r.title}\nURL: ${r.url}\nSummary: ${r.content}`).join('\n')}
 
-Provide a direct answer, include the most relevant sources as markdown links, and mention if the answer is uncertain.
-  `;
-
-  const apiKey = process.env.OPENAI_API_KEY;
+Answer the user's question clearly and accurately. If the answer is uncertain, say so. Include relevant source links in markdown format.
+`;
 
   if (!apiKey) {
-    return `I could not reach the model because OPENAI_API_KEY is not set. Based on the available web results and memory, the best answer is: ${searchResults[0]?.content ?? 'Please add your OpenAI key to enable full AI responses.'}`;
+    const fallback = searchResults[0]?.content ?? 'No web answer available.';
+    return `I couldn't reach the model because OPENAI_API_KEY is not configured. Based on the available information: ${fallback}`;
   }
 
+  const OpenAI = (await import('openai')).default;
   const client = new OpenAI({ apiKey });
+
   const completion = await client.chat.completions.create({
     model: 'gpt-4o-mini',
+    temperature: 0.3,
     messages: [
       {
         role: 'system',
-        content: 'You are a careful AI assistant that answers using live web search results and user memory. Cite sources clearly when available.',
+        content: 'Answer using the user memory and live web search results. Cite sources clearly when available.',
       },
-      {
-        role: 'user',
-        content: prompt,
-      },
+      { role: 'user', content: prompt },
     ],
-    temperature: 0.3,
   });
 
-  return completion.choices[0]?.message?.content ?? 'I am unable to generate an answer right now.';
+  return completion.choices[0]?.message?.content ?? 'I could not generate a response.';
 }

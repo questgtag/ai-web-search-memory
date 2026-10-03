@@ -1,37 +1,18 @@
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
-import { verifySessionToken } from '@/lib/auth';
+import Link from 'next/link';
 
-export default function LoginPage() {
-  const cookieStore = cookies();
-  const token = cookieStore.get('ai_session')?.value;
-
-  if (token) {
-    const session = verifySessionToken(token);
-    if (session) {
-      redirect('/dashboard');
-    }
-  }
-
+export default function HomePage() {
   return (
     <main className="page-shell centered">
-      <div className="card auth-card">
-        <p className="eyebrow">Welcome back</p>
-        <h1>Sign in</h1>
-        <form action="/api/auth/login" method="POST" className="form-stack">
-          <label>
-            Email
-            <input type="email" name="email" required placeholder="you@example.com" />
-          </label>
-          <label>
-            Password
-            <input type="password" name="password" required placeholder="••••••••" />
-          </label>
-          <button className="primary-button" type="submit">Sign in</button>
-        </form>
-        <p className="subtle-link">
-          Need an account? <a href="/register">Create one</a>
+      <div className="card hero-card">
+        <p className="eyebrow">AI research assistant</p>
+        <h1>Search the web, answer anything, and remember what matters.</h1>
+        <p className="lead">
+          Sign in to ask questions, get live web-based answers, and save personal facts to your memory.
         </p>
+        <div className="button-row">
+          <Link href="/login" className="primary-button">Sign in</Link>
+          <Link href="/register" className="secondary-button">Create account</Link>
+        </div>
       </div>
     </main>
   );

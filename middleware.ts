@@ -1,27 +1,24 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { verifySessionToken } from '@/lib/auth';
+import { NextRequest, NextResponse } from 'next/server';
+import { verifySessionToken, SESSION_COOKIE_NAME } from '@/lib/auth';
 
-const publicPaths = ['/login', '/register', '/', '/api/auth/login', '/api/auth/register'];
+const publicPaths = ['/', '/login', '/register', '/api/auth/login', '/api/auth/register'];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (publicPaths.includes(pathname)) {
+  if (publicPaths.includes(pathname) || pathname.startsWith('/_next')) {
     return NextResponse.next();
   }
 
-  const token = request.cookies.get('ai_session')?.value;
+  const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
   if (!token) {
-    const loginUrl = new URL('/login', request.url);
-    return NextResponse.redirect(loginUrl);
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
   const session = verifySessionToken(token);
   if (!session) {
-    const loginUrl = new URL('/login', request.url);
-    const response = NextResponse.redirect(loginUrl);
-    response.cookies.delete('ai_session');
+    const response = NextResponse.redirect(new URL('/login', request.url));
+    response.cookies.set(SESSION_COOKIE_NAME, '', { maxAge: 0, path: '/' });
     return response;
   }
 
